@@ -8,8 +8,9 @@
 - Scene view : <br>
   Scene viewer er notað skil þess að skoða senuna eða vinnusvæðið, þar sem þú smellir, færir og breytit hlutum
 - Game view : <br>
+  Svipað "Scene Viewer" nema það sínir PoV frá leiknum
+- Project : <br>
   
-- Project
 - Hierarchy
 - Inspector
 
