@@ -17,6 +17,12 @@
   
 # Skilaverkefni 2 [20%]
 
+[Allar Skriptur]()
+[Myndbandi](https://www.youtube.com/watch?v=XcpUH3Ep_9A)
+<br><br>
+
+
+
 # Skilaverkefni 3 [20%]
 
 # Skilaverkefni 4 [20%]
