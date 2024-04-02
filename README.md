@@ -19,7 +19,7 @@
 
 - [Allar Skriptur](https://github.com/Belistov/leikjaforritun2024/tree/main/Skil%202%20Skript)
 - [Myndbandi](https://www.youtube.com/watch?v=XcpUH3Ep_9A)
-
+- [Spilaðu Leikinn]()
 # Skilaverkefni 3 [20%]
 
 # Skilaverkefni 4 [20%]
