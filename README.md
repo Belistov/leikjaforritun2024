@@ -440,7 +440,7 @@ public class EnemySpawner : MonoBehaviour
 ```
 ## Hlekkir
 [Youtube Myndband](https://www.youtube.com/watch?v=JT0UTBF1z-E)
-[Spilaðu Leikinn]()
+[Spilaðu Leikinn](https://bakupyronew.itch.io/skil4)
 ## Athugasemdir
 
 # Skilaverkefni 4 [20%]
