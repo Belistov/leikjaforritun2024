@@ -442,6 +442,8 @@ public class EnemySpawner : MonoBehaviour
 [Youtube Myndband](https://www.youtube.com/watch?v=JT0UTBF1z-E)
 [Spilaðu Leikinn](https://bakupyronew.itch.io/skil4)
 ## Athugasemdir
+Ég var ekki að nenna að downloada vatni og setja allar týpur af shitti, er of þreyttur, búinn að vera erfiður mánuður og hef varla tíma til neins, <br>
+g´´oða nótt og bless <3
 
 # Skilaverkefni 4 [20%]
 
