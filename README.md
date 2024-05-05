@@ -446,5 +446,101 @@ public class EnemySpawner : MonoBehaviour
 g´´oða nótt og bless <3
 
 # Skilaverkefni 4 [20%]
+## Athugasemdir
+Ég og Elvar unnum verkefnið saman, notuðum sama asset pakka og ég lánaði honum kóðann minn, ég neita að gera meira víst leiðbeningar eru svo illa settar upp.
+##
+## Hlekkir
+[Youtube Myndband](https://www.youtube.com/watch?v=H2gD_ZE-4wQ)
+[Spilaðu Leikinn](https://bakupyronew.itch.io/forrd-skil-4)
+## Kóðinn
+```cs
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UIElements;
+
+public class Movement : MonoBehaviour
+{
+    Rigidbody2D rb; // Rigidbody sem stjórnar hreyfingum leikmanns
+
+    public float walkS = 4f; // Hraði leikmanns þegar hann gengur
+    public float speedLim = 0.7f; // Takkmarkaður hraði þegar leikmaður fer í ská
+    public float inputHor; // Inntak frá notanda um láréttar hreyfingar
+    public float inputVer; // Inntak frá notanda um lóðréttar hreyfingar
+
+    Animator animator; // Animator sem stjórnar hreyfingum leikmanns
+    string currentAnimState; // Núverandi stöðu hreyfingar leikmanns
+    const string Player_Idle = "Player_Idle"; // Nafn stöðu þegar leikmaður er kyrr
+    const string Player_Walk_Down = "Player_Run_Down"; // Nafn stöðu þegar leikmaður er að hreyfast niður
+    const string Player_Walk_Up = "Player_Run_Up"; // Nafn stöðu þegar leikmaður er að hreyfast upp
+    const string Player_Walk_Left = "Player_Run_Left"; // Nafn stöðu þegar leikmaður er að hreyfast til vinstri
+    const string Player_Walk_Right = "Player_Run_Right"; // Nafn stöðu þegar leikmaður er að hreyfast til hægri
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        rb = gameObject.GetComponent<Rigidbody2D>(); // Ná í Rigidbody tengt þessum hlut
+
+        animator = gameObject.GetComponent<Animator>(); // Ná í Animator tengt þessum hlut
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        inputHor = Input.GetAxisRaw("Horizontal"); // Ná í láréttar hreyfingar frá notanda
+        inputVer = Input.GetAxisRaw("Vertical"); // Ná í lóðréttar hreyfingar frá notanda
+    }
+
+    // FixedUpdate is called every fixed framerate frame
+    private void FixedUpdate()
+    {
+        if (inputHor != 0 || inputVer != 0) // Ef notandi er að gefa inntak um hreyfingu
+        {
+            if (inputHor != 0 && inputVer != 0) // Ef notandi er að hreyfa leikmann í báðar áttir
+            {
+                inputHor *= speedLim; // Takmarka hraða í láréttu með `speedLim`
+                inputVer *= speedLim; // Takmarka hraða í lóðréttu með `speedLim`
+            }
+
+            // Setja hreyfingu leikmanns miðað við inntakið
+            rb.velocity = new Vector2(inputHor * walkS, inputVer * walkS);
+
+            // Athuga stefnu hreyfingar og stilla viðeigandi hreyfingastöðu
+            if (inputHor < 0) // Ef leikmaður er að hreyfast til vinstri
+            {
+                ChangeAnimState(Player_Walk_Right); // Setja hreyfingastöðu til hægri (og flip)
+            }
+            if (inputHor > 0) // Ef leikmaður er að hreyfast til hægri
+            {
+                ChangeAnimState(Player_Walk_Left); // Setja hreyfingastöðu til vinstri (án flips)
+            }
+            if (inputVer > 0) // Ef leikmaður er að hreyfast upp
+            {
+                ChangeAnimState(Player_Walk_Up); // Setja hreyfingastöðu upp
+            }
+            if (inputVer < 0) // Ef leikmaður er að hreyfast niður
+            {
+                ChangeAnimState(Player_Walk_Down); // Setja hreyfingastöðu niður
+            }
+
+        }
+        else // Ef ekki er verið að gefa inntak um hreyfingu
+        {
+            rb.velocity = new Vector2(0f, 0f); // Núllstilla hreyfingu leikmanns
+            ChangeAnimState(Player_Idle); // Setja hreyfingastöðu sem kyrrstöðu
+        }
+    }
+
+    // Fall sem stýrir breytingu á hreyfingastöðu leikmanns
+    void ChangeAnimState(string newState)
+    {
+        if (currentAnimState == newState) return; // Ef núverandi stöða er þegar þessi stöða, hætta
+
+        animator.Play(newState); // Leika viðeigandi hreyfingastöðu í Animator
+
+        currentAnimState = newState; // Uppfæra núverandi hreyfingastöðu
+    }
+}
+```
 
 # Skilaverkefni 5 [20%]
