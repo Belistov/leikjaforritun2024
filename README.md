@@ -544,3 +544,705 @@ public class Movement : MonoBehaviour
 ```
 
 # Skilaverkefni 5 [20%]
+## Athugasemdir
+Mér fynst asset pakkin "Ruby's adventure" vera svo leiðinlegur að vinna með, maður bara missir áhugann á leikjaforritun við að nota svona pakka, þannig ég valdi mér pakka sjálfur.
+
+## Hlekkir
+
+## Skriptur
+Death Barrier / KillZone
+```cs
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+public class KillZone : MonoBehaviour
+{
+    // Þetta fall er kallað þegar einhver fer inn í svæðið
+    void OnTriggerEnter2D(Collider2D col)
+    {
+        // Athuga hvort hluturinn sem fór inn í svæðið sé merktur sem "Player"
+        if (col.gameObject.tag == "Player")
+        {
+            // Endurhlaða núverandi sviðsmynd ef hluturinn er leikmaðurinn
+            SceneManager.LoadSceneAsync(SceneManager.GetActiveScene().buildIndex);
+        }
+        else
+        {
+            // Eyða hlutnum ef hann er ekki leikmaðurinn
+            Destroy(col.gameObject);
+        }
+    }
+}
+```
+
+Stigakerfi
+```cs
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+public class Points : MonoBehaviour
+{
+    public string pointTag; // Merkimiði fyrir stigahluti
+    public string enemyTag; // Merkimiði fyrir óvinahluti
+    public float pointCount; // Núverandi stiga fjöldi
+
+    // Start er kallað áður en fyrsta ramminn er uppfærður
+    void Start()
+    {
+        pointCount = 0;
+        Debug.Log("Stig sett á byrjunarstöðu: " + pointCount);
+        Debug.Log("Búist við að rekast á hluti með merki: " + pointTag);
+    }
+
+    // OnTriggerEnter2D er kallað þegar Collider2D annar fer inn í kveikjuna
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        // Athuga hvort þessi hlutur sé leikmaðurinn og rekst á hluti með stigamerkið
+        if (gameObject.CompareTag("Player") && other.gameObject.CompareTag(pointTag))
+        {
+            // Hækka stiga fjöldann
+            pointCount++;
+            Debug.Log("Stig aukin: " + pointCount);
+            Destroy(other.gameObject); // Eyða hlutnum sem var rekst á
+
+            // Athuga hvort nóg stig hafi verið safnað til að vinna
+            if (pointCount >= 15)
+            {
+                SceneManager.LoadScene("WinScene");
+            }
+        }
+
+        // Athuga hvort þessi hlutur sé óvinur og rekst á hluti með óvinamerkið eða stigamerkið og óvinamerkið
+        if (gameObject.CompareTag(enemyTag) && other.gameObject.CompareTag(enemyTag) || gameObject.CompareTag(pointTag) && other.gameObject.CompareTag(enemyTag))
+        {
+            // Hunsa árekstra milli óvina, framkvæma ekki neinar aðgerðir
+            return;
+        }
+
+        // Athuga hvort þessi hlutur sé leikmaðurinn og rekst á hluti með óvinamerkið
+        if (gameObject.CompareTag("Player") && other.gameObject.CompareTag(enemyTag))
+        {
+            // Lækka stiga fjöldann
+            pointCount--;
+            Debug.Log("Stig lækkuð: " + pointCount);
+
+            // Athuga hvort stig hafi farið niður fyrir núll til að tapa
+            if (pointCount < 0)
+            {
+                SceneManager.LoadScene("LoseScene");
+            }
+        }
+    }
+}
+```
+
+Senu Hlaðari / SceneLoader
+```cs
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+public class SceneLoader : MonoBehaviour
+{
+    public static SceneLoader instance;
+
+    void Awake()
+    {
+        // Útfærsla á Singleton munstri
+        if (instance == null)
+        {
+            instance = this;
+            DontDestroyOnLoad(gameObject); // Valfrjálst, halda þessum hlut á milli sviðsmynda
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    public void GoToGameplay()
+    {
+        SceneManager.LoadScene("Scene1");
+    }
+}
+```
+
+Attack Script
+```cs
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Attack : MonoBehaviour
+{
+    public float dmgValue = 4; // Skemmdargildi árásarinnar
+    public GameObject throwableObject; // Hlutir sem hægt er að kasta
+    public Transform attackCheck; // Staðsetning til að athuga hvort óvinur sé nálægt fyrir árás
+    private Rigidbody2D m_Rigidbody2D; // Stýring á stífleika
+    public Animator animator; // Stýring á hreyfimyndum
+    public bool canAttack = true; // Athuga hvort leikmaðurinn getur ráðist á
+    public bool isTimeToCheck = false; // Athuga hvort tími sé kominn til að athuga
+
+    public GameObject cam; // Myndavélin
+
+    private void Awake()
+    {
+        m_Rigidbody2D = GetComponent<Rigidbody2D>();
+    }
+
+    // Start er kallað áður en fyrsta ramminn er uppfærður
+    void Start()
+    {
+        
+    }
+
+    // Update er kallað einu sinni í hverjum ramma
+    void Update()
+    {
+        // Athuga hvort leikmaðurinn ýti á X eða Fire1 takkann og getur ráðist á
+        if (Input.GetKeyDown(KeyCode.X) && canAttack || Input.GetButtonDown("Fire1") && canAttack)
+        {
+            canAttack = false;
+            animator.SetBool("IsAttacking", true);
+            StartCoroutine(AttackCooldown());
+        }
+
+        // Athuga hvort leikmaðurinn ýti á V eða Fire2 takkann
+        if (Input.GetKeyDown(KeyCode.V) || Input.GetButtonDown("Fire2") && canAttack)
+        {
+            // Búa til kastvopn og stilla stefnu þess
+            GameObject throwableWeapon = Instantiate(throwableObject, transform.position + new Vector3(transform.localScale.x * 0.5f,-0.2f), Quaternion.identity) as GameObject; 
+            Vector2 direction = new Vector2(transform.localScale.x, 0);
+            throwableWeapon.GetComponent<ThrowableWeapon>().direction = direction; 
+            throwableWeapon.name = "ThrowableWeapon";
+        }
+    }
+
+    // Tímabil þar sem ekki er hægt að ráðast á eftir árás
+    IEnumerator AttackCooldown()
+    {
+        yield return new WaitForSeconds(0.25f);
+        canAttack = true;
+    }
+
+    // Gerir skaða á óvini þegar leikmaður gerir skyndiárás
+    public void DoDashDamage()
+    {
+        dmgValue = Mathf.Abs(dmgValue);
+        Collider2D[] collidersEnemies = Physics2D.OverlapCircleAll(attackCheck.position, 0.9f);
+        for (int i = 0; i < collidersEnemies.Length; i++)
+        {
+            if (collidersEnemies[i].gameObject.tag == "Enemy")
+            {
+                if (collidersEnemies[i].transform.position.x - transform.position.x < 0)
+                {
+                    dmgValue = -dmgValue;
+                }
+                collidersEnemies[i].gameObject.SendMessage("ApplyDamage", dmgValue);
+                cam.GetComponent<CameraFollow>().ShakeCamera();
+            }
+        }
+    }
+}
+```
+PlayerMovement
+```cs
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class PlayerMovement : MonoBehaviour {
+
+    public CharacterController2D controller; // Stýring fyrir persónu
+    public Animator animator; // Stýring á hreyfimyndum
+
+    public float runSpeed = 40f; // Hraði persónunnar
+
+    float horizontalMove = 0f; // Lárétt hreyfing
+    bool jump = false; // Athuga hvort persónan á að stökkva
+    bool dash = false; // Athuga hvort persónan á að gera skyndiárás
+
+    // Uppfært einu sinni í hverjum ramma
+    void Update () {
+        horizontalMove = Input.GetAxisRaw("Horizontal") * runSpeed;
+
+        animator.SetFloat("Speed", Mathf.Abs(horizontalMove));
+
+        if (Input.GetKeyDown(KeyCode.Z) || Input.GetKeyDown("space"))
+        {
+            jump = true;
+        }
+
+        if (Input.GetKeyDown(KeyCode.C) || Input.GetKeyDown("left shift"))
+        {
+            dash = true;
+        }
+    }
+
+    // Kallað þegar persónan fellur
+    public void OnFall()
+    {
+        animator.SetBool("IsJumping", true);
+    }
+
+    // Kallað þegar persónan lendir
+    public void OnLanding()
+    {
+        animator.SetBool("IsJumping", false);
+    }
+
+    // Uppfært á föstum tímabilum
+    void FixedUpdate ()
+    {
+        // Hreyfa persónuna
+        controller.Move(horizontalMove * Time.fixedDeltaTime, jump, dash);
+        jump = false;
+        dash = false;
+    }
+}
+```
+CameraFollow
+````cs
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class CameraFollow : MonoBehaviour
+{
+    public float FollowSpeed = 2f; // Hraði sem myndavélin fylgir markinu
+    public Transform Target; // Markið sem myndavélin á að fylgja
+
+    // Transform af myndavélinni til að hrista. Nær í transform af gameObjectinu
+    // ef það er null.
+    private Transform camTransform;
+
+    // Hversu lengi myndavélin á að hristast.
+    public float shakeDuration = 0f;
+
+    // Styrkur hristingsins. Hærra gildi hristir myndavélina meira.
+    public float shakeAmount = 0.1f;
+    public float decreaseFactor = 1.0f;
+
+    Vector3 originalPos;
+
+    void Awake()
+    {
+        Cursor.visible = false;
+        if (camTransform == null)
+        {
+            camTransform = GetComponent(typeof(Transform)) as Transform;
+        }
+    }
+
+    void OnEnable()
+    {
+        originalPos = camTransform.localPosition;
+    }
+
+    private void Update()
+    {
+        // Færa myndavélina að nýrri staðsetningu í átt að markinu
+        Vector3 newPosition = Target.position;
+        newPosition.z = -10;
+        transform.position = Vector3.Slerp(transform.position, newPosition, FollowSpeed * Time.deltaTime);
+
+        // Ef hristingur er enn í gangi, hrista myndavélina
+        if (shakeDuration > 0)
+        {
+            camTransform.localPosition = originalPos + Random.insideUnitSphere * shakeAmount;
+
+            shakeDuration -= Time.deltaTime * decreaseFactor;
+        }
+    }
+
+    // Kallað til að hrista myndavélina
+    public void ShakeCamera()
+    {
+        originalPos = camTransform.localPosition;
+        shakeDuration = 0.2f;
+    }
+}
+```
+Character Controller Script
+```cs
+using UnityEngine;
+using UnityEngine.Events;
+using System.Collections;
+using UnityEngine.SceneManagement;
+
+public class CharacterController2D : MonoBehaviour
+{
+    [SerializeField] private float m_JumpForce = 400f;                            // Krafan sem er beitt þegar leikmaðurinn stekkur.
+    [Range(0, .3f)] [SerializeField] private float m_MovementSmoothing = .05f;    // Hversu mikið á að slétta út hreyfinguna
+    [SerializeField] private bool m_AirControl = false;                           // Hvort leikmaðurinn geti stjórnað í loftinu
+    [SerializeField] private LayerMask m_WhatIsGround;                            // Maski sem ákvarðar hvað er jörð fyrir persónuna
+    [SerializeField] private Transform m_GroundCheck;                             // Staðsetning sem merkir hvar á að athuga hvort persónan sé á jörðinni
+    [SerializeField] private Transform m_WallCheck;                               // Staðsetning sem athugar hvort persónan snerti vegg
+
+    const float k_GroundedRadius = .2f; // Radíus yfirborðshringings til að ákvarða hvort sé á jörðinni
+    private bool m_Grounded;            // Hvort leikmaðurinn sé á jörðinni
+    private Rigidbody2D m_Rigidbody2D;
+    private bool m_FacingRight = true;  // Til að ákvarða í hvaða átt leikmaðurinn snýr
+    private Vector3 velocity = Vector3.zero;
+    private float limitFallSpeed = 25f; // Hámarkshraði í falli
+
+    public bool canDoubleJump = true; // Hvort leikmaðurinn geti tvístökk
+    [SerializeField] private float m_DashForce = 25f;
+    private bool canDash = true;
+    private bool isDashing = false; // Hvort leikmaðurinn sé að skyndiárás
+    private bool m_IsWall = false; // Hvort það sé veggur fyrir framan leikmanninn
+    private bool isWallSliding = false; // Hvort leikmaðurinn sé að renna á vegg
+    private bool oldWallSlidding = false; // Hvort leikmaðurinn hafi verið að renna á vegg í fyrri ramma
+    private float prevVelocityX = 0f;
+    private bool canCheck = false; // Til að athuga hvort leikmaðurinn renni á vegg
+
+    public float life = 10f; // Líf leikmannsins
+    public bool invincible = false; // Hvort leikmaðurinn sé ósigrandi
+    private bool canMove = true; // Hvort leikmaðurinn geti hreyft sig
+
+    private Animator animator;
+    public ParticleSystem particleJumpUp; // Agnaáhrif þegar stekkur upp
+    public ParticleSystem particleJumpDown; // Agnaáhrif þegar lendir
+
+    private float jumpWallStartX = 0;
+    private float jumpWallDistX = 0; // Fjarlægð milli leikmanns og veggs
+    private bool limitVelOnWallJump = false; // Til að takmarka veggstökksfjarlægð með lágum fps
+
+    [Header("Events")]
+    [Space]
+
+    public UnityEvent OnFallEvent;
+    public UnityEvent OnLandEvent;
+
+    [System.Serializable]
+    public class BoolEvent : UnityEvent<bool> { }
+
+    private void Awake()
+    {
+        m_Rigidbody2D = GetComponent<Rigidbody2D>();
+        animator = GetComponent<Animator>();
+
+        if (OnFallEvent == null)
+            OnFallEvent = new UnityEvent();
+
+        if (OnLandEvent == null)
+            OnLandEvent = new UnityEvent();
+    }
+
+    private void FixedUpdate()
+    {
+        bool wasGrounded = m_Grounded;
+        m_Grounded = false;
+
+        // Leikmaðurinn er á jörðinni ef hringing til staðsetningar á groundcheck hittir eitthvað sem er merkt sem jörð
+        Collider2D[] colliders = Physics2D.OverlapCircleAll(m_GroundCheck.position, k_GroundedRadius, m_WhatIsGround);
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            if (colliders[i].gameObject != gameObject)
+                m_Grounded = true;
+                if (!wasGrounded )
+                {
+                    OnLandEvent.Invoke();
+                    if (!m_IsWall && !isDashing) 
+                        particleJumpDown.Play();
+                    canDoubleJump = true;
+                    if (m_Rigidbody2D.velocity.y < 0f)
+                        limitVelOnWallJump = false;
+                }
+        }
+
+        m_IsWall = false;
+
+        if (!m_Grounded)
+        {
+            OnFallEvent.Invoke();
+            Collider2D[] collidersWall = Physics2D.OverlapCircleAll(m_WallCheck.position, k_GroundedRadius, m_WhatIsGround);
+            for (int i = 0; i < collidersWall.Length; i++)
+            {
+                if (collidersWall[i].gameObject != null)
+                {
+                    isDashing = false;
+                    m_IsWall = true;
+                }
+            }
+            prevVelocityX = m_Rigidbody2D.velocity.x;
+        }
+
+        if (limitVelOnWallJump)
+        {
+            if (m_Rigidbody2D.velocity.y < -0.5f)
+                limitVelOnWallJump = false;
+            jumpWallDistX = (jumpWallStartX - transform.position.x) * transform.localScale.x;
+            if (jumpWallDistX < -0.5f && jumpWallDistX > -1f) 
+            {
+                canMove = true;
+            }
+            else if (jumpWallDistX < -1f && jumpWallDistX >= -2f) 
+            {
+                canMove = true;
+                m_Rigidbody2D.velocity = new Vector2(10f * transform.localScale.x, m_Rigidbody2D.velocity.y);
+            }
+            else if (jumpWallDistX < -2f) 
+            {
+                limitVelOnWallJump = false;
+                m_Rigidbody2D.velocity = new Vector2(0, m_Rigidbody2D.velocity.y);
+            }
+            else if (jumpWallDistX > 0) 
+            {
+                limitVelOnWallJump = false;
+                m_Rigidbody2D.velocity = new Vector2(0, m_Rigidbody2D.velocity.y);
+            }
+        }
+    }
+
+    public void Move(float move, bool jump, bool dash)
+    {
+        if (canMove) {
+            if (dash && canDash && !isWallSliding)
+            {
+                StartCoroutine(DashCooldown());
+            }
+            if (isDashing)
+            {
+                m_Rigidbody2D.velocity = new Vector2(transform.localScale.x * m_DashForce, 0);
+            }
+            else if (m_Grounded || m_AirControl)
+            {
+                if (m_Rigidbody2D.velocity.y < -limitFallSpeed)
+                    m_Rigidbody2D.velocity = new Vector2(m_Rigidbody2D.velocity.x, -limitFallSpeed);
+                Vector3 targetVelocity = new Vector2(move * 10f, m_Rigidbody2D.velocity.y);
+                m_Rigidbody2D.velocity = Vector3.SmoothDamp(m_Rigidbody2D.velocity, targetVelocity, ref velocity, m_MovementSmoothing);
+
+                if (move > 0 && !m_FacingRight && !isWallSliding)
+                {
+                    Flip();
+                }
+                else if (move < 0 && m_FacingRight && !isWallSliding)
+                {
+                    Flip();
+                }
+            }
+            if (m_Grounded && jump)
+            {
+                animator.SetBool("IsJumping", true);
+                animator.SetBool("JumpUp", true);
+                m_Grounded = false;
+                m_Rigidbody2D.AddForce(new Vector2(0f, m_JumpForce));
+                canDoubleJump = true;
+                particleJumpDown.Play();
+                particleJumpUp.Play();
+            }
+            else if (!m_Grounded && jump && canDoubleJump && !isWallSliding)
+            {
+                canDoubleJump = false;
+                m_Rigidbody2D.velocity = new Vector2(m_Rigidbody2D.velocity.x, 0);
+                m_Rigidbody2D.AddForce(new Vector2(0f, m_JumpForce / 1.2f));
+                animator.SetBool("IsDoubleJumping", true);
+            }
+            else if (m_IsWall && !m_Grounded)
+            {
+                if (!oldWallSlidding && m_Rigidbody2D.velocity.y < 0 || isDashing)
+                {
+                    isWallSliding = true;
+                    m_WallCheck.localPosition = new Vector3(-m_WallCheck.localPosition.x, m_WallCheck.localPosition.y, 0);
+                    Flip();
+                    StartCoroutine(WaitToCheck(0.1f));
+                    canDoubleJump = true;
+                    animator.SetBool("IsWallSliding", true);
+                }
+                isDashing = false;
+
+                if (isWallSliding)
+                {
+                    if (move * transform.localScale.x > 0.1f)
+                    {
+                        StartCoroutine(WaitToEndSliding());
+                    }
+                    else 
+                    {
+                        oldWallSlidding = true;
+                        m_Rigidbody2D.velocity = new Vector2(-transform.localScale.x * 2, -5);
+                    }
+                }
+
+                if (jump && isWallSliding)
+                {
+                    animator.SetBool("IsJumping", true);
+                    animator.SetBool("JumpUp", true); 
+                    m_Rigidbody2D.velocity = new Vector2(0f, 0f);
+                    m_Rigidbody2D.AddForce(new Vector2(transform.localScale.x * m_JumpForce * 1.2f, m_JumpForce));
+                    jumpWallStartX = transform.position.x;
+                    limitVelOnWallJump = true;
+                    canDoubleJump = true;
+                    isWallSliding = false;
+                    animator.SetBool("IsWallSliding", false);
+                    oldWallSlidding = false;
+                    m_WallCheck.localPosition = new Vector3(Mathf.Abs(m_WallCheck.localPosition.x), m_WallCheck.localPosition.y, 0);
+                    canMove = false;
+                }
+                else if (dash && canDash)
+                {
+                    isWallSliding = false;
+                    animator.SetBool("IsWallSliding", false);
+                    oldWallSlidding = false;
+                    m_WallCheck.localPosition = new Vector3(Mathf.Abs(m_WallCheck.localPosition.x), m_WallCheck.localPosition.y, 0);
+                    canDoubleJump = true;
+                    StartCoroutine(DashCooldown());
+                }
+            }
+            else if (isWallSliding && !m_IsWall && canCheck) 
+            {
+                isWallSliding = false;
+                animator.SetBool("IsWallSliding", false);
+                oldWallSlidding = false;
+                m_WallCheck.localPosition = new Vector3(Mathf.Abs(m_WallCheck.localPosition.x), m_WallCheck.localPosition.y, 0);
+                canDoubleJump = true;
+            }
+        }
+    }
+
+    private void Flip()
+    {
+        m_FacingRight = !m_FacingRight;
+        Vector3 theScale = transform.localScale;
+        theScale.x *= -1;
+        transform.localScale = theScale;
+    }
+
+    public void ApplyDamage(float damage, Vector3 position) 
+    {
+        if (!invincible)
+        {
+            animator.SetBool("Hit", true);
+            life -= damage;
+            Vector2 damageDir = Vector3.Normalize(transform.position - position) * 40f ;
+            m_Rigidbody2D.velocity = Vector2.zero;
+            m_Rigidbody2D.AddForce(damageDir * 10);
+            if (life <= 0)
+            {
+                StartCoroutine(WaitToDead());
+            }
+            else
+            {
+                StartCoroutine(Stun(0.25f));
+                StartCoroutine(MakeInvincible(1f));
+            }
+        }
+    }
+
+    IEnumerator DashCooldown()
+    {
+        animator.SetBool("IsDashing", true);
+        isDashing = true;
+        canDash = false;
+        yield return new WaitForSeconds(0.1f);
+        isDashing = false;
+        yield return new WaitForSeconds(0.5f);
+        canDash = true;
+    }
+
+    IEnumerator Stun(float time) 
+    {
+        canMove = false;
+        yield return new WaitForSeconds(time);
+        canMove = true;
+    }
+
+    IEnumerator MakeInvincible(float time) 
+    {
+        invincible = true;
+        yield return new WaitForSeconds(time);
+        invincible = false;
+    }
+
+    IEnumerator WaitToMove(float time)
+    {
+        canMove = false;
+        yield return new WaitForSeconds(time);
+        canMove = true;
+    }
+
+    IEnumerator WaitToCheck(float time)
+    {
+        canCheck = false;
+        yield return new WaitForSeconds(time);
+        canCheck = true;
+    }
+
+    IEnumerator WaitToEndSliding()
+    {
+        yield return new WaitForSeconds(0.1f);
+        canDoubleJump = true;
+        isWallSliding = false;
+        animator.SetBool("IsWallSliding", false);
+        oldWallSlidding = false;
+        m_WallCheck.localPosition = new Vector3(Mathf.Abs(m_WallCheck.localPosition.x), m_WallCheck.localPosition.y, 0);
+    }
+
+    IEnumerator WaitToDead()
+    {
+        animator.SetBool("IsDead", true);
+        canMove = false;
+        invincible = true;
+        GetComponent<Attack>().enabled = false;
+        yield return new WaitForSeconds(0.4f);
+        m_Rigidbody2D.velocity = new Vector2(0, m_Rigidbody2D.velocity.y);
+        yield return new WaitForSeconds(1.1f);
+        SceneManager.LoadSceneAsync(SceneManager.GetActiveScene().buildIndex);
+    }
+}
+```
+
+Throwable Weapon Script
+```cs
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class ThrowableWeapon : MonoBehaviour
+{
+    public Vector2 direction; // The direction in which the weapon will be thrown
+    public bool hasHit = false; // A flag to check if the weapon has hit something
+    public float speed = 10f; // Speed at which the weapon will travel
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        // Initialization if needed
+    }
+
+    // Update is called once per frame
+    void FixedUpdate()
+    {
+        // If the weapon hasn't hit anything, set its velocity in the specified direction
+        if (!hasHit)
+        {
+            GetComponent<Rigidbody2D>().velocity = direction * speed;
+        }
+    }
+
+    // This method is called when the weapon collides with another collider
+    void OnCollisionEnter2D(Collision2D collision)
+    {
+        // If the weapon collides with an enemy
+        if (collision.gameObject.tag == "Enemy")
+        {
+            // Send a message to the enemy to apply damage
+            collision.gameObject.SendMessage("ApplyDamage", Mathf.Sign(direction.x) * 2f);
+            // Destroy the weapon after it hits an enemy
+            Destroy(gameObject);
+        }
+        // If the weapon collides with something that is not the player
+        else if (collision.gameObject.tag != "Player")
+        {
+            // Destroy the weapon upon collision
+            Destroy(gameObject);
+        }
+    }
+}
+```
