@@ -1,4 +1,6 @@
 # leikjaforritun2024
+[[ Link text | page_title#Skilaverkefni 1 ]]
+
 
 # Skilaverkefni 1 [20%]
 - [Skriptur]()
