@@ -1246,3 +1246,585 @@ public class ThrowableWeapon : MonoBehaviour
     }
 }
 ```
+Eiðinleggjanlegir Hlutir
+```cs
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class DestructibleObject : MonoBehaviour
+{
+    public float life = 3; // Lífshæð hlutarins
+
+    // Tími sem skjálfti á að vara
+    private float shakeDuration = 0f;
+
+    // Magn skjálfts, stillt eftir þínum kostum
+    private float shakeMagnitude = 0.25f;
+
+    // Hversu hratt skjálfti á að minnka
+    private float dampingSpeed = 1f;
+
+    // Upphafleg staðsetning hlutarins
+    Vector3 initialPosition;
+
+    // Awake er kallað áður en fyrsta myndræna uppfærslan er framkvæmd
+    void Awake()
+    {
+        initialPosition = transform.position; // Upphafleg staðsetning hlutarins
+    }
+
+    void Start()
+    {
+        // Ekkert gerist í upphafi
+    }
+
+    // Update er kallað einu sinni á hverri ramma
+    void Update()
+    {
+        if (life <= 0) // Ef líf hlutarins er minna en eða jafnt og núll
+        {
+            Destroy(gameObject); // Eyða hlutnum
+        }
+        else if (shakeDuration > 0) // Ef skjálftatími er meiri en núll
+        {
+            // Breyta staðsetningu hlutarins með slembið skjálfti
+            transform.localPosition = initialPosition + Random.insideUnitSphere * shakeMagnitude;
+
+            // Mínusa tímann sem skjálfti á eftir
+            shakeDuration -= Time.deltaTime * dampingSpeed;
+        }
+        else // Annars
+        {
+            shakeDuration = 0f; // Núllstilla skjálftatímann
+            transform.localPosition = initialPosition; // Setja hlutinn í upphaflega staðsetningu
+        }
+    }
+
+    // Fall sem sækir skaða
+    public void ApplyDamage(float damage)
+    {
+        life -= 1; // Mínusa lífið
+        shakeDuration = 0.1f; // Setja skjálftatímann
+    }
+}
+```
+Grass
+```cs
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Grass : MonoBehaviour
+{
+    public ParticleSystem leafParticle; // Skilgreinir leifar af grasi sem á að birtast
+
+    // Kallað þegar annar colliderinn kemst inn í triggerinn á hlutnum
+    void OnTriggerEnter2D(Collider2D col)
+    {
+        // Ef staðsetning hlutarinnar er til vinstri um leikmanninn
+        if (transform.position.x - col.transform.position.x > 0)
+        {
+            // Spilast vinstri hreyfinginni í animator
+            GetComponent<Animator>().Play("MovingGrassL");
+        }
+        else // Annars
+        {
+            // Spilast hægri hreyfinginni í animator
+            GetComponent<Animator>().Play("MovingGrassR");
+        }
+    }
+
+    // Fall sem notast er við til að taka við skaða
+    public void ApplyDamage(float damage)
+    {
+        // Býr til leifar af grasi við staðsetningu grashlutarins
+        Instantiate(leafParticle, transform.position, Quaternion.identity);
+        // Eyðir grashlutnum
+        Destroy(gameObject);
+    }
+}
+```
+Ovinur Kast
+```cs
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class ThrowableProjectile : MonoBehaviour
+{
+    public Vector2 direction; // Stefna skotsins
+    public bool hasHit = false; // Segir til um hvort skotið hafi lent
+    public float speed = 15f; // Hraði skotsins
+    public GameObject owner; // Eigandinn á skotinu
+
+    // Update er kallað einu sinni á hverjum ramma
+    void FixedUpdate()
+    {
+        // Ef skotið hefur ekki lent, stilla hreyfingu skotsins
+        if (!hasHit)
+            GetComponent<Rigidbody2D>().velocity = direction * speed;
+    }
+
+    // Kallað þegar skotið rekst á annan collider
+    void OnCollisionEnter2D(Collision2D collision)
+    {
+        // Ef rekst á leikmann
+        if (collision.gameObject.tag == "Player")
+        {
+            // Beita skaða á leikmann með sérstökum skoti
+            collision.gameObject.GetComponent<CharacterController2D>().ApplyDamage(2f, transform.position);
+            Destroy(gameObject); // Eyða skotinu
+        }
+        // Ef skotinu er eigandinn til staðar, og það rekst á annað en eigandann og er fiandi
+        else if (owner != null && collision.gameObject != owner && collision.gameObject.tag == "Enemy")
+        {
+            // Beita skaða á fianda
+            collision.gameObject.SendMessage("ApplyDamage", Mathf.Sign(direction.x) * 2f);
+            Destroy(gameObject); // Eyða skotinu
+        }
+        // Ef rekst á eitthvað annað en fianda eða leikmann
+        else if (collision.gameObject.tag != "Enemy" && collision.gameObject.tag != "Player")
+        {
+            Destroy(gameObject); // Eyða skotinu
+        }
+    }
+}
+```
+Ovinur
+```cs
+using UnityEngine;
+using System.Collections;
+
+public class Enemy : MonoBehaviour {
+
+    public float life = 10; // Líf fiandans
+    private bool isPlat; // Segir til um hvort fiandinn sé á plata
+    private bool isObstacle; // Segir til um hvort fiandinn sé á hindrun
+    private Transform fallCheck; // Staðsetning til að athuga hvort fiandinn sé á plata
+    private Transform wallCheck; // Staðsetning til að athuga hvort fiandinn sé á veggi
+    public LayerMask turnLayerMask; // Maski sem segir til um hvaða lög þarf að snúa við
+    private Rigidbody2D rb; // Rigidbody fyrir fiandann
+
+    private bool facingRight = true; // Segir til um hvilken átt fiandinn horfir á
+    
+    public float speed = 5f; // Hraði fiandans
+
+    public bool isInvincible = false; // Segir til um hvort fiandinn sé ódauðlegur
+    private bool isHitted = false; // Segir til um hvort fiandinn hafi verið hittur
+
+    void Awake () {
+        fallCheck = transform.Find("FallCheck"); // Finna fallCheck hlutinn
+        wallCheck = transform.Find("WallCheck"); // Finna wallCheck hlutinn
+        rb = GetComponent<Rigidbody2D>(); // Sækja Rigidbody fyrir fiandann
+    }
+    
+    // Update er kallað einu sinni á hverjum ramma
+    void FixedUpdate () {
+
+        // Ef lífið er minna eða jafnt og 0, hætta við hreyfingu og eyða fiandanum
+        if (life <= 0) {
+            transform.GetComponent<Animator>().SetBool("IsDead", true); // Setja sannleika á Animator til að sýna dauðan
+            StartCoroutine(DestroyEnemy()); // Byrja eyðingu fiandans
+        }
+
+        // Athuga hvort fiandinn sé á plata og hvort hann sé á hindrun
+        isPlat = Physics2D.OverlapCircle(fallCheck.position, .2f, 1 << LayerMask.NameToLayer("Default"));
+        isObstacle = Physics2D.OverlapCircle(wallCheck.position, .2f, turnLayerMask);
+
+        // Ef fiandinn hefur ekki verið hittur, lifir og hreyfist ekki upp eða niður
+        if (!isHitted && life > 0 && Mathf.Abs(rb.velocity.y) < 0.5f)
+        {
+            // Ef fiandinn er á plötum og ekki á hindrunum
+            if (isPlat && !isObstacle && !isHitted)
+            {
+                // Ef hann horfir til hægri
+                if (facingRight)
+                {
+                    rb.velocity = new Vector2(-speed, rb.velocity.y); // Hreyfa hann til vinstri
+                }
+                else
+                {
+                    rb.velocity = new Vector2(speed, rb.velocity.y); // Annars hreyfa hann til hægri
+                }
+            }
+            else
+            {
+                Flip(); // Annars snúa við
+            }
+        }
+    }
+
+    // Snúa við fiandanum
+    void Flip (){
+        // Breyta stefnu áhorfandans
+        facingRight = !facingRight;
+        
+        // Snúa fyrirmynd fiandans
+        Vector3 theScale = transform.localScale;
+        theScale.x *= -1;
+        transform.localScale = theScale;
+    }
+
+    // Beita skaða á fiandann
+    public void ApplyDamage(float damage) {
+        if (!isInvincible) 
+        {
+            float direction = damage / Mathf.Abs(damage); // Áttur skaðans
+            damage = Mathf.Abs(damage); // Breyta skaðanum í jákvæða tölu
+            transform.GetComponent<Animator>().SetBool("Hit", true); // Segja Animator að spila hitt animation
+            life -= damage; // Minka líf fiandans
+            rb.velocity = Vector2.zero; // Núllstilla hraða
+            rb.AddForce(new Vector2(direction * 500f, 100f)); // Beita hröðun
+            StartCoroutine(HitTime()); // Byrja hittíma
+        }
+    }
+
+    // Athuga hvort leikmaður sé í snertingu við fiandann
+    void OnCollisionStay2D(Collision2D collision)
+    {
+        if (collision.gameObject.tag == "Player" && life > 0)
+        {
+            // Beita skaða á leikmanni
+            collision.gameObject.GetComponent<CharacterController2D>().ApplyDamage(2f, transform.position);
+        }
+    }
+
+    // Hittími
+    IEnumerator HitTime()
+    {
+        isHitted = true; // Segja til um að fiandinn hafi verið hittur
+        isInvincible = true; // Segja til um að fiandinn sé ódauðlegur
+        yield return new WaitForSeconds(0.1f); // Bíða í 0.1 sekúndu
+        isHitted = false; // Taka af hittíma
+        isInvincible = false; // Taka af ódauðlegheit
+    }
+
+    // Eyða fiandanum
+    IEnumerator DestroyEnemy()
+    {
+        CapsuleCollider2D capsule = GetComponent<CapsuleCollider2D>(); // Sækja CapsuleCollider2D hlutinn
+        capsule.size = new Vector2(1f, 0.25f); // Setja nýjar mál til CapsuleCollider2D
+        capsule.offset = new Vector2(0f, -0.8f); // Offset CapsuleCollider2D
+        capsule.direction = CapsuleDirection2D.Horizontal; // Stillingar fyrir CapsuleCollider2D
+        yield return new WaitForSeconds(0.25f); // Bíða í 0.25 sekúndur
+        rb.velocity = new Vector2(0, rb.velocity.y); // Núllstilla hraða
+        yield return new WaitForSeconds(3f); // Bíða í 3 sekúndur
+        Destroy(gameObject); // Eyða fiandanum
+    }
+}
+```
+Ally.cs
+```cs
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Ally : MonoBehaviour
+{
+    private Rigidbody2D m_Rigidbody2D;
+    private bool m_FacingRight = true;  // Til að ákvarða í hvaða átt leikmaðurinn snýr.
+
+    public float life = 10; // Líf leikmanns
+
+    private bool facingRight = true;
+
+    public float speed = 5f; // Hraði leikmanns
+
+    public bool isInvincible = false; // Er leikmaðurinn ódauðlegur?
+    private bool isHitted = false; // Var leikmaðurinn hittur?
+
+    [SerializeField] private float m_DashForce = 25f; // Kraftur þegar dreginn er á
+
+    private bool isDashing = false; // Er leikmaðurinn að hrinda sér?
+
+    public GameObject enemy; // Fjandi sem leikmaðurinn á að ráðast á
+
+    private float distToPlayer; // Fjarlægð til fjandans (x-ás)
+    private float distToPlayerY; // Fjarlægð til fjandans (y-ás)
+
+    public float meleeDist = 1.5f; // Fjarlægð til að framkvæma náinn árás (melee attack)
+    public float rangeDist = 5f; // Fjarlægð til að framkvæma fjærárás (range attack)
+
+    private bool canAttack = true; // Getur leikmaðurinn ráðst á?
+
+    private Transform attackCheck; // Staðsetning árásar athugunar
+
+    public float dmgValue = 4; // Skemmdir sem leikmaðurinn veldur
+
+    public GameObject throwableObject; // Fjarlægð til að skjóta frá sér
+
+    private float randomDecision = 0; // Slembin ákvarðun
+    private bool doOnceDecision = true; // Einu sinni ákvarðun
+    private bool endDecision = false; // Lok ákvarðunar
+
+    private Animator anim; // Animator hluturinn
+
+    void Awake()
+    {
+        m_Rigidbody2D = GetComponent<Rigidbody2D>();
+        attackCheck = transform.Find("AttackCheck").transform;
+        anim = GetComponent<Animator>();
+    }
+
+    // Update er kallað einu sinni á hvert ramma
+    void FixedUpdate()
+    {
+        // Ef líf leikmanns er minna en 0, eyða leikmanni
+        if (life <= 0)
+        {
+            StartCoroutine(DestroyEnemy());
+        }
+        // Annars ef fjandi er til staðar
+        else if (enemy != null) 
+        {
+            // Ef leikmaðurinn er að hrinda sér
+            if (isDashing)
+            {
+                m_Rigidbody2D.velocity = new Vector2(transform.localScale.x * m_DashForce, 0);
+            }
+            // Annars ef leikmaðurinn var ekki hittur
+            else if (!isHitted)
+            {
+                distToPlayer = enemy.transform.position.x - transform.position.x;
+                distToPlayerY = enemy.transform.position.y - transform.position.y;
+
+                // Ef fjarlægðin milli leikmanns og fjandans er minni en náinn árásar radíus
+                if (Mathf.Abs(distToPlayer) < 0.25f)
+                {
+                    GetComponent<Rigidbody2D>().velocity = new Vector2(0f, m_Rigidbody2D.velocity.y);
+                    anim.SetBool("IsWaiting", true);
+                }
+                // Ef fjarlægðin er innan náinnar árásar en ekki náinnar
+                else if (Mathf.Abs(distToPlayer) > 0.25f && Mathf.Abs(distToPlayer) < meleeDist && Mathf.Abs(distToPlayerY) < 2f)
+                {
+                    GetComponent<Rigidbody2D>().velocity = new Vector2(0f, m_Rigidbody2D.velocity.y);
+                    // Ef leikmaðurinn snýr ekki rétt, snúa
+                    if ((distToPlayer > 0f && transform.localScale.x < 0f) || (distToPlayer < 0f && transform.localScale.x > 0f)) 
+                        Flip();
+                    if (canAttack)
+                    {
+                        MeleeAttack();
+                    }
+                }
+                // Ef fjarlægðin er utan náinnar árásar en innan fjærárásar
+                else if (Mathf.Abs(distToPlayer) > meleeDist && Mathf.Abs(distToPlayer) < rangeDist)
+                {
+                    anim.SetBool("IsWaiting", false);
+                    m_Rigidbody2D.velocity = new Vector2(distToPlayer / Mathf.Abs(distToPlayer) * speed, m_Rigidbody2D.velocity.y);
+                }
+                // Annars framkvæma slembin ákvarðun
+                else
+                {
+                    if (!endDecision)
+                    {
+                        // Ef leikmaðurinn snýr ekki rétt, snúa
+                        if ((distToPlayer > 0f && transform.localScale.x < 0f) || (distToPlayer < 0f && transform.localScale.x > 0f)) 
+                            Flip();
+
+                        if (randomDecision < 0.4f)
+                            Run();
+                        else if (randomDecision >= 0.4f && randomDecision < 0.6f)
+                            Jump();
+                        else if (randomDecision >= 0.6f && randomDecision < 0.8f)
+                            StartCoroutine(Dash());
+                        else if (randomDecision >= 0.8f && randomDecision < 0.95f)
+                            RangeAttack();
+                        else
+                            Idle();
+                    }
+                    else
+                    {
+                        endDecision = false;
+                    }
+                }
+            }
+            // Annars ef leikmaðurinn var hittur
+            else if (isHitted)
+            {
+                // Ef leikmaðurinn snýr rétt, snúa og hrinda sér
+                if ((distToPlayer > 0f && transform.localScale.x > 0f) || (distToPlayer < 0f && transform.localScale.x < 0f))
+                {
+                    Flip();
+                    StartCoroutine(Dash());
+                }
+                else
+                    StartCoroutine(Dash());
+            }
+        }
+        // Annars leita að fjanda
+        else 
+        {
+            enemy = GameObject.Find("DrawCharacter");
+        }
+
+        if (transform.localScale.x * m_Rigidbody2D.velocity.x > 0 && !m_FacingRight && life > 0)
+        {
+            // ... flip the player.
+            Flip();
+        }
+        // Otherwise if the input is moving the player left and the player is facing right...
+        else if (transform.localScale.x * m_Rigidbody2D.velocity.x < 0 && m_FacingRight && life > 0)
+        {
+            // ... flip the player.
+            Flip();
+        }
+    }
+
+    // Snúa leikmanni
+    void Flip()
+    {
+        // Breyta um átt sem leikmaðurinn snýr
+        facingRight = !facingRight;
+
+        // Margfalda x-stærð leikmanns við -1 til að snúa honum
+        Vector3 theScale = transform.localScale;
+        theScale.x *= -1;
+        transform.localScale = theScale;
+    }
+
+    // Álagasetning skaða á leikmann
+    public void ApplyDamage(float damage)
+    {
+        if (!isInvincible)
+        {
+            float direction = damage / Mathf.Abs(damage);
+            damage = Mathf.Abs(damage);
+            anim.SetBool("Hit", true);
+            life -= damage;
+            transform.gameObject.GetComponent<Rigidbody2D>().velocity = new Vector2(0, 0);
+            transform.gameObject.GetComponent<Rigidbody2D>().AddForce(new Vector2(direction * 300f, 100f)); 
+            StartCoroutine(HitTime());
+        }
+    }
+
+    // Náinn árás (melee attack)
+    public void MeleeAttack()
+    {
+        transform.GetComponent<Animator>().SetBool("Attack", true);
+        Collider2D[] collidersEnemies = Physics2D.OverlapCircleAll(attackCheck.position, 0.9f);
+        for (int i = 0; i < collidersEnemies.Length; i++)
+        {
+            if (collidersEnemies[i].gameObject.tag == "Enemy" && collidersEnemies[i].gameObject != gameObject )
+            {
+                if (transform.localScale.x < 1)
+                {
+                    dmgValue = -dmgValue;
+                }
+                collidersEnemies[i].gameObject.SendMessage("ApplyDamage", dmgValue);
+            }
+            else if (collidersEnemies[i].gameObject.tag == "Player")
+            {
+                collidersEnemies[i].gameObject.GetComponent<CharacterController2D>().ApplyDamage(2f, transform.position);
+            }
+        }
+        StartCoroutine(WaitToAttack(0.5f));
+    }
+
+    // Fjærárás (range attack)
+    public void RangeAttack()
+    {
+        if (doOnceDecision)
+        {
+            GameObject throwableProj = Instantiate(throwableObject, transform.position + new Vector3(transform.localScale.x * 0.5f, -0.2f), Quaternion.identity) as GameObject;
+            throwableProj.GetComponent<ThrowableProjectile>().owner = gameObject;
+            Vector2 direction = new Vector2(transform.localScale.x, 0f);
+            throwableProj.GetComponent<ThrowableProjectile>().direction = direction;
+            StartCoroutine(NextDecision(0.5f));
+        }
+    }
+
+    // Hrífa
+    public void Run()
+    {
+        anim.SetBool("IsWaiting", false);
+        m_Rigidbody2D.velocity = new Vector2(distToPlayer / Mathf.Abs(distToPlayer) * speed, m_Rigidbody2D.velocity.y);
+        if (doOnceDecision)
+            StartCoroutine(NextDecision(0.5f));
+    }
+
+    // Hoppa
+    public void Jump()
+    {
+        Vector3 targetVelocity = new Vector2(distToPlayer / Mathf.Abs(distToPlayer) * speed, m_Rigidbody2D.velocity.y);
+        Vector3 velocity = Vector3.zero;
+        m_Rigidbody2D.velocity = Vector3.SmoothDamp(m_Rigidbody2D.velocity, targetVelocity, ref velocity, 0.05f);
+        if (doOnceDecision)
+        {
+            anim.SetBool("IsWaiting", false);
+            m_Rigidbody2D.AddForce(new Vector2(0f, 850f));
+            StartCoroutine(NextDecision(1f));
+        }
+    }
+
+    // Óvirkur
+    public void Idle()
+    {
+        m_Rigidbody2D.velocity = new Vector2(0f, m_Rigidbody2D.velocity.y);
+        if (doOnceDecision)
+        {
+            anim.SetBool("IsWaiting", true);
+            StartCoroutine(NextDecision(1f));
+        }
+    }
+
+    // Enda ákvarðun
+    public void EndDecision()
+    {
+        randomDecision = Random.Range(0.0f, 1.0f); 
+        endDecision = true;
+    }
+
+    // Tíma við hittingu
+    IEnumerator HitTime()
+    {
+        isInvincible = true;
+        isHitted = true;
+        yield return new WaitForSeconds(0.1f);
+        isHitted = false;
+        isInvincible = false;
+    }
+
+    // Bíða fyrir árás
+    IEnumerator WaitToAttack(float time)
+    {
+        canAttack = false;
+        yield return new WaitForSeconds(time);
+        canAttack = true;
+    }
+
+    // Hrífa (dash)
+    IEnumerator Dash()
+    {
+        anim.SetBool("IsDashing", true);
+        isDashing = true;
+        yield return new WaitForSeconds(0.1f);
+        isDashing = false;
+        EndDecision();
+    }
+
+    // Næsta ákvarðun
+    IEnumerator NextDecision(float time)
+    {
+        doOnceDecision = false;
+        yield return new WaitForSeconds(time);
+        EndDecision();
+        doOnceDecision = true;
+        anim.SetBool("IsWaiting", false);
+    }
+
+    // Eyða fjanda
+    IEnumerator DestroyEnemy()
+    {
+        CapsuleCollider2D capsule = GetComponent<CapsuleCollider2D>();
+        capsule.size = new Vector2(1f, 0.25f);
+        capsule.offset = new Vector2(0f, -0.8f);
+        capsule.direction = CapsuleDirection2D.Horizontal;
+        transform.GetComponent<Animator>().SetBool("IsDead", true);
+        yield return new WaitForSeconds(0.25f);
+        m_Rigidbody2D.velocity = new Vector2(0, m_Rigidbody2D.velocity.y);
+        yield return new WaitForSeconds(1f);
+        Destroy(gameObject);
+    }
+}
+```
