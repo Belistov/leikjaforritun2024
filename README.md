@@ -1,9 +1,9 @@
 # leikjaforritun2024
-[Skil 1](https://github.com/Belistov/leikjaforritun2024/blob/main/README.md#skilaverkefni-1-20)
-[Skil 2](https://github.com/Belistov/leikjaforritun2024/blob/main/README.md#skilaverkefni-2-20)
-[Skil 3](https://github.com/Belistov/leikjaforritun2024/blob/main/README.md#skilaverkefni-3-20)
-[Skil 4](https://github.com/Belistov/leikjaforritun2024/blob/main/README.md#skilaverkefni-4-20)
-[Skil 5](https://github.com/Belistov/leikjaforritun2024/blob/main/README.md#skilaverkefni-5-20)
+- [Skil 1](https://github.com/Belistov/leikjaforritun2024/blob/main/README.md#skilaverkefni-1-20)<br>
+- [Skil 2](https://github.com/Belistov/leikjaforritun2024/blob/main/README.md#skilaverkefni-2-20)
+- [Skil 3](https://github.com/Belistov/leikjaforritun2024/blob/main/README.md#skilaverkefni-3-20)
+- [Skil 4](https://github.com/Belistov/leikjaforritun2024/blob/main/README.md#skilaverkefni-4-20)
+- [Skil 5](https://github.com/Belistov/leikjaforritun2024/blob/main/README.md#skilaverkefni-5-20)
 
 # Skilaverkefni 1 [20%]
 - [Skriptur]()
