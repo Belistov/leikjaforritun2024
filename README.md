@@ -553,6 +553,8 @@ public class Movement : MonoBehaviour
 Mér fynst asset pakkin "Ruby's adventure" vera svo leiðinlegur að vinna með, maður bara missir áhugann á leikjaforritun við að nota svona pakka, þannig ég valdi mér pakka sjálfur.
 
 ## Hlekkir
+[Myndband](https://www.youtube.com/watch?v=LNX1yv-VkyU)
+[Leikurinn](https://bakupyronew.itch.io/lokaverkefni)
 
 ## Skriptur
 Death Barrier / KillZone
